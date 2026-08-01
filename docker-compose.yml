@@ -1,0 +1,93 @@
+# Local Iceberg Lakehouse: Dremio + Nessie + MinIO
+# Laptop portfolio build (2026).
+# Pin image tags after your first successful run for reproducibility.
+
+services:
+  # ---------------------------------------------------------------
+  # Object storage (S3-compatible). Stands in for ADLS / S3.
+  # ---------------------------------------------------------------
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # Web console -> http://localhost:9001
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [lakehouse]
+
+  # ---------------------------------------------------------------
+  # One-shot: create the buckets Dremio/Nessie will use, then exit.
+  # ---------------------------------------------------------------
+  minio-init:
+    image: minio/mc:latest
+    container_name: minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 ${MINIO_ROOT_USER:-minioadmin} ${MINIO_ROOT_PASSWORD:-minioadmin} &&
+      mc mb -p local/warehouse &&
+      mc mb -p local/landing &&
+      echo 'Buckets ready: warehouse, landing' &&
+      exit 0;
+      "
+    networks: [lakehouse]
+
+  # ---------------------------------------------------------------
+  # Nessie: Git-like catalog for Apache Iceberg.
+  # Exposes the Iceberg REST Catalog API (v2) at :19120.
+  # IN_MEMORY store keeps setup zero-config; see README to persist.
+  # ---------------------------------------------------------------
+  nessie:
+    image: ghcr.io/projectnessie/nessie:latest
+    container_name: nessie
+    ports:
+      - "19120:19120"
+    environment:
+      nessie.version.store.type: IN_MEMORY
+      nessie.server.default-branch: main
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:19120/api/v2/config"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [lakehouse]
+
+  # ---------------------------------------------------------------
+  # Dremio: lakehouse query engine + UI. http://localhost:9047
+  # First launch: create the admin account in the browser.
+  # ---------------------------------------------------------------
+  dremio:
+    image: dremio/dremio-oss:latest
+    container_name: dremio
+    ports:
+      - "9047:9047"   # Web UI
+      - "31010:31010" # JDBC/ODBC
+      - "32010:32010" # Arrow Flight
+    depends_on:
+      nessie:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    volumes:
+      - dremio-data:/opt/dremio/data
+    networks: [lakehouse]
+
+volumes:
+  minio-data:
+  dremio-data:
+
+networks:
+  lakehouse:
+    driver: bridge
