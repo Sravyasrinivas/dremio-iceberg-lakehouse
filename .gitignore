@@ -1,0 +1,17 @@
+# Secrets & local env
+.env
+
+# Generated data
+data/output/
+*.parquet
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
