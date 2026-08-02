@@ -84,6 +84,30 @@ services:
       - dremio-data:/opt/dremio/data
     networks: [lakehouse]
 
+  # ---------------------------------------------------------------
+  # Spark 3.5 with Iceberg + Nessie + AWS jars pre-bundled.
+  # Long-running container; you exec spark-submit into it.
+  # ---------------------------------------------------------------
+  spark:
+    image: alexmerced/spark35nb:latest
+    container_name: spark
+    ports:
+      - "8888:8888"   # Jupyter (optional)
+      - "4040:4040"   # Spark UI while a job runs
+    environment:
+      AWS_REGION: us-east-1
+      AWS_DEFAULT_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    volumes:
+      - ./spark:/workspace/spark
+    depends_on:
+      nessie:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks: [lakehouse]
+
 volumes:
   minio-data:
   dremio-data:
