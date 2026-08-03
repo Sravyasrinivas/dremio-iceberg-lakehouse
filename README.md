@@ -16,7 +16,7 @@ background can reproduce the project end to end.
 
 ## Table of contents
 
-1. [The big picture (plain English)](#1-the-big-picture-plain-english)
+1. [The big picture](#1-the-big-picture-plain-english)
 2. [Concepts explained from zero](#2-concepts-explained-from-zero)
 3. [Glossary of every term used](#3-glossary-of-every-term-used)
 4. [Software you need to install](#4-software-you-need-to-install)
@@ -31,7 +31,7 @@ background can reproduce the project end to end.
 
 ---
 
-## 1. The big picture (plain English)
+## 1. The big picture
 
 Companies collect huge amounts of data. They need somewhere to **store** it,
 somewhere to **organize** it into tables, and a way to **query** it (ask
